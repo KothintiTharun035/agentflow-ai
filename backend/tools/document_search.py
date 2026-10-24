@@ -1,11 +1,11 @@
 
 """
-Embedding-based vector retrieval for AgentFlow AI.
+Lightweight TF-IDF retrieval for AgentFlow AI.
 
 Features:
 - Knowledge-base documents
 - Overlapping text chunks
-- Local sentence-transformer embeddings
+- TF-IDF vectorization using scikit-learn
 - Cosine-similarity retrieval
 - One-time index construction and caching
 
@@ -16,21 +16,16 @@ from functools import lru_cache
 from typing import Any
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-
-# --------------------------------------------------
-# 1. Embedding configuration
-# --------------------------------------------------
-
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 CHUNK_SIZE = 80
 CHUNK_OVERLAP = 15
 
 
 # --------------------------------------------------
-# 2. Knowledge base
+# 1. Knowledge base
 # --------------------------------------------------
 
 KNOWLEDGE_BASE = [
@@ -77,7 +72,7 @@ KNOWLEDGE_BASE = [
 
 
 # --------------------------------------------------
-# 3. Split documents into overlapping chunks
+# 2. Split documents into overlapping chunks
 # --------------------------------------------------
 
 def chunk_text(
@@ -85,12 +80,7 @@ def chunk_text(
     chunk_size: int = CHUNK_SIZE,
     overlap: int = CHUNK_OVERLAP,
 ) -> list[str]:
-    """
-    Split text into word-based chunks with overlapping context.
-
-    Short documents produce one chunk.
-    Longer documents produce multiple overlapping chunks.
-    """
+    """Split text into word-based chunks with overlapping context."""
 
     if chunk_size <= 0:
         raise ValueError("chunk_size must be greater than zero.")
@@ -110,8 +100,7 @@ def chunk_text(
     step = chunk_size - overlap
 
     while start < len(words):
-        chunk_words = words[start : start + chunk_size]
-        chunks.append(" ".join(chunk_words))
+        chunks.append(" ".join(words[start:start + chunk_size]))
 
         if start + chunk_size >= len(words):
             break
@@ -122,49 +111,42 @@ def chunk_text(
 
 
 def build_document_chunks() -> list[dict[str, Any]]:
-    """
-    Convert each knowledge-base document into searchable chunks.
-    """
+    """Convert knowledge-base documents into searchable chunks."""
 
     chunks = []
 
     for document in KNOWLEDGE_BASE:
-        # Include the title so its subject is represented in the embedding.
         full_text = (
             f"Title: {document['title']}\n"
             f"Troubleshooting guidance: {document['solution']}"
         )
 
-        document_chunks = chunk_text(full_text)
-
-        for chunk_number, content in enumerate(document_chunks, start=1):
-            chunks.append(
-                {
-                    "id": document["id"],
-                    "title": document["title"],
-                    "solution": document["solution"],
-                    "chunk_id": (
-                        f"{document['id']}-CHUNK-{chunk_number}"
-                    ),
-                    "chunk_number": chunk_number,
-                    "content": content,
-                }
-            )
+        for chunk_number, content in enumerate(
+            chunk_text(full_text), start=1
+        ):
+            chunks.append({
+                "id": document["id"],
+                "title": document["title"],
+                "solution": document["solution"],
+                "chunk_id": f"{document['id']}-CHUNK-{chunk_number}",
+                "chunk_number": chunk_number,
+                "content": content,
+            })
 
     return chunks
 
 
 # --------------------------------------------------
-# 4. Build and cache the embedding index
+# 3. Build and cache the lightweight TF-IDF index
 # --------------------------------------------------
 
 @lru_cache(maxsize=1)
 def load_vector_index():
     """
-    Load the embedding model and build the index once per process.
+    Build the TF-IDF index once per process.
 
-    Embeddings are normalized, so their dot products equal cosine
-    similarity.
+    TF-IDF vectors are L2-normalized by default, so their dot
+    product corresponds to cosine similarity.
     """
 
     chunks = build_document_chunks()
@@ -172,31 +154,25 @@ def load_vector_index():
     if not chunks:
         raise ValueError("The knowledge base contains no searchable text.")
 
-    print(f"Loading embedding model: {EMBEDDING_MODEL}")
-
-    model = SentenceTransformer(EMBEDDING_MODEL)
-
-    texts = [chunk["content"] for chunk in chunks]
-
-    embeddings = model.encode(
-        texts,
-        convert_to_numpy=True,
-        normalize_embeddings=True,
-        show_progress_bar=False,
+    vectorizer = TfidfVectorizer(
+        lowercase=True,
+        ngram_range=(1, 2),
+        strip_accents="unicode",
     )
 
-    embeddings = np.asarray(embeddings, dtype=np.float32)
+    texts = [chunk["content"] for chunk in chunks]
+    document_matrix = vectorizer.fit_transform(texts)
 
     print(
-        "Vector index ready: "
+        "TF-IDF index ready: "
         f"{len(chunks)} chunks from {len(KNOWLEDGE_BASE)} documents."
     )
 
-    return model, chunks, embeddings
+    return vectorizer, chunks, document_matrix
 
 
 # --------------------------------------------------
-# 5. Semantic document retrieval
+# 4. Retrieve relevant documents
 # --------------------------------------------------
 
 def search_documents(
@@ -204,12 +180,10 @@ def search_documents(
     limit: int = 3,
 ) -> list[dict[str, Any]]:
     """
-    Retrieve knowledge-base documents using semantic similarity.
-
-    The query is embedded using the same model as the documents.
-    Similarity is computed using cosine similarity.
+    Retrieve knowledge-base documents using TF-IDF cosine similarity.
 
     Returns one result per document, ranked by its best matching chunk.
+    The output structure remains compatible with the existing RAG API.
     """
 
     if not isinstance(query, str) or not query.strip():
@@ -218,24 +192,15 @@ def search_documents(
     if limit <= 0:
         return []
 
-    model, chunks, embeddings = load_vector_index()
+    vectorizer, chunks, document_matrix = load_vector_index()
 
-    query_embedding = model.encode(
-        [query.strip()],
-        convert_to_numpy=True,
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
+    query_vector = vectorizer.transform([query.strip()])
 
-    query_embedding = np.asarray(
-        query_embedding,
-        dtype=np.float32,
-    )
+    similarities = cosine_similarity(
+        query_vector,
+        document_matrix,
+    ).ravel()
 
-    # Because both sides are normalized, the dot product is cosine similarity.
-    similarities = embeddings @ query_embedding[0]
-
-    # Highest similarity first.
     ranked_indices = np.argsort(-similarities)
 
     results = []
@@ -245,25 +210,22 @@ def search_documents(
         chunk = chunks[int(index)]
         document_id = chunk["id"]
 
-        # Keep the best matching chunk for each document.
         if document_id in seen_document_ids:
             continue
 
         seen_document_ids.add(document_id)
 
-        score = float(similarities[int(index)])
-
-        results.append(
-            {
-                "id": document_id,
-                "title": chunk["title"],
-                "solution": chunk["solution"],
-                "chunk_id": chunk["chunk_id"],
-                "chunk_number": chunk["chunk_number"],
-                "content": chunk["content"],
-                "similarity_score": round(score, 4),
-            }
-        )
+        results.append({
+            "id": document_id,
+            "title": chunk["title"],
+            "solution": chunk["solution"],
+            "chunk_id": chunk["chunk_id"],
+            "chunk_number": chunk["chunk_number"],
+            "content": chunk["content"],
+            "similarity_score": round(
+                float(similarities[int(index)]), 4
+            ),
+        })
 
         if len(results) >= limit:
             break
@@ -272,7 +234,7 @@ def search_documents(
 
 
 # --------------------------------------------------
-# 6. Local test
+# 5. Local test
 # --------------------------------------------------
 
 if __name__ == "__main__":
@@ -286,9 +248,7 @@ if __name__ == "__main__":
     for query in test_queries:
         print(f"\nQuery: {query}")
 
-        results = search_documents(query, limit=3)
-
-        for result in results:
+        for result in search_documents(query, limit=3):
             print(
                 f"- {result['id']} | {result['title']} | "
                 f"similarity={result['similarity_score']}"
