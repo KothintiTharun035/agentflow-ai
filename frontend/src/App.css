@@ -1,0 +1,296 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: #0b1020;
+  color: #f3f5ff;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.app {
+  max-width: 950px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+header {
+  margin-bottom: 32px;
+}
+
+header h1 {
+  font-size: clamp(36px, 6vw, 52px);
+  margin: 8px 0;
+  letter-spacing: -1.5px;
+}
+
+header > p:last-child,
+.panel > p {
+  color: #aab4cc;
+  line-height: 1.7;
+}
+
+.eyebrow {
+  color: #a9a4ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.panel {
+  padding: 28px;
+  margin-bottom: 24px;
+  background: #151d32;
+  border: 1px solid #293550;
+  border-radius: 18px;
+}
+
+label {
+  display: block;
+  margin-top: 22px;
+  font-weight: 600;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  margin: 12px 0 18px;
+  padding: 16px;
+  border: 1px solid #35415e;
+  border-radius: 10px;
+  background: #0b1020;
+  color: white;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid #7774ff;
+  border-color: transparent;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 9px;
+  background: #7774ff;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #293550;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.success {
+  color: #a9e7c2 !important;
+}
+
+.error {
+  color: #ffaaaa !important;
+  overflow-wrap: anywhere;
+}
+
+.results h2 {
+  line-height: 1.4;
+}
+
+.steps li {
+  padding: 12px 0;
+}
+
+.steps li p,
+.note {
+  color: #aab4cc;
+  line-height: 1.7;
+}
+
+.tool {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #242e49;
+  color: #c8c5ff;
+  font-size: 12px;
+}
+
+.note {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #293550;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 32px 16px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+}
+
+
+
+
+
+/* RAG answer and source documents */
+
+.answer-content {
+  margin-top: 12px;
+  padding: 18px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #111827;
+  color: #e5e7eb;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.question {
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.citation {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid #475569;
+  border-radius: 999px;
+  color: #bfdbfe;
+  background: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.documents {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.document {
+  padding: 16px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #111827;
+}
+
+.document-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.document p {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.similarity {
+  color: #93c5fd;
+  font-size: 0.85rem;
+}
+
+.document details {
+  margin-top: 10px;
+  color: #cbd5e1;
+}
+
+.document summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.document details p {
+  white-space: pre-wrap;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
+  .document-heading {
+    align-items: flex-start;
+  }
+}
+
+
+.app > header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.app > header h1 {
+  margin: 12px 0 18px;
+  line-height: 1.2;
+}
+
+.app > header > p:last-child {
+  margin: 0 auto;
+  max-width: 700px;
+  line-height: 1.6;
+}
+
+
+
+
+.report-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 18px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #111827;
+  color: #e5e7eb;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  overflow-x: auto;
+}
